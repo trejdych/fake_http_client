@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../fake_http_client.dart';
+import 'response_manager.dart';
 
 /// A fake implementation of [HttpClientRequest].
 ///
@@ -46,14 +47,70 @@ import '../fake_http_client.dart';
 ///
 /// An exception is thrown if you use an unsupported encoding and the
 /// `write()` method being used takes a string parameter.
-class FakeHttpClientRequest implements HttpClientRequest {
-  FakeHttpClientRequest({
+class FakeHttpRequest implements HttpClientRequest {
+  FakeHttpRequest({
     required this.method,
     required this.uri,
-    required this.headers,
+    this.manager,
+    this.harResponse,
+    this.contentLength = -1,
+    this.delay,
     this.cookies = const [],
     this.connectionInfo,
   });
+
+  factory FakeHttpRequest.imagePng({required Uri uri, String method = 'GET'}) =>
+      FakeHttpRequest(
+        method: method,
+        uri: uri,
+        contentLength: 8,
+        harResponse: const HarResponse(
+          status: 200,
+          headers: [
+            HarHeader(name: 'Content-Type', value: 'image/png'),
+          ],
+          content: HarResponseContent(
+            mimeType: 'image/png',
+            size: 8,
+            text:
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wcAAwAB/6Wk8QAAAABJRU5ErkJggg==', // Base64 encoded 1x1 PNG image
+            encoding: 'base64',
+          ),
+        ),
+      );
+
+  factory FakeHttpRequest.json({
+    required Uri uri,
+    required Map<String, dynamic> body,
+    String method = 'GET',
+    int statusCode = 200,
+  }) {
+    final encodedBody = json.encode(body);
+
+    return FakeHttpRequest(
+      method: method,
+      uri: uri,
+      contentLength: utf8.encode(encodedBody).length,
+      harResponse: HarResponse(
+        status: statusCode,
+        headers: [
+          const HarHeader(name: 'Content-Type', value: 'application/json'),
+        ],
+        content: HarResponseContent(
+          mimeType: 'application/json',
+          size: utf8.encode(encodedBody).length,
+          text: encodedBody,
+        ),
+      ),
+    );
+  }
+
+  final ResponseManager? manager;
+  final HarResponse? harResponse;
+  final Duration? delay;
+
+  Completer<List<int>>? _bytesCompleter;
+  final _completer = Completer<HttpClientResponse>();
 
   /// The requested persistent connection state.
   ///
@@ -135,7 +192,7 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// If the size of the request is not known in advance set content length to
   /// -1, which is also the default.
   @override
-  int contentLength = -1;
+  int contentLength;
 
   /// Gets or sets if the [HttpClientRequest] should buffer output.
   ///
@@ -152,7 +209,11 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// request body is written to or closed. After that they become
   /// immutable.
   @override
-  final HttpHeaders headers;
+  HttpHeaders get headers => FakeHttpHeaders(
+      // Map.fromEntries(
+      //   harResponse.headers.map((e) => MapEntry(e.name, [e.value])),
+      // ),
+      );
 
   /// Cookies to present to the server (in the 'cookie' header).
   @override
@@ -164,13 +225,50 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// If an error occurs before the response is available, this future will
   /// complete with an error.
   @override
-  Future<HttpClientResponse> get done => throw UnimplementedError();
+  Future<HttpClientResponse> get done => _completer.future;
 
   /// Close the request for input. Returns the value of [done].
   @override
   Future<HttpClientResponse> close() async {
-    return FakeHttpResponse(body: '1');
-    // throw UnimplementedError();
+    if (delay case final delay?) {
+      await Future<void>.delayed(delay);
+    }
+    if (_completer.isCompleted) {
+      return done;
+    }
+
+    final requestBody = switch (await _bytesCompleter?.future) {
+      final bytes? => encoding.decode(bytes),
+      _ => null,
+    };
+
+    final harResponse = this.harResponse ??
+        await manager?.getResponse(
+          method: method,
+          uri: uri,
+          body: requestBody,
+        );
+    if (harResponse == null) {
+      throw StateError('No response found for $method $uri');
+    }
+
+    final body = switch (harResponse.content) {
+      HarResponseContent(:final text, encoding: 'base64') =>
+        base64.decode(text),
+      HarResponseContent(:final text, encoding: 'utf-8') => text,
+      HarResponseContent(:final text) => encoding.encode(text),
+    };
+
+    final headers = Map.fromEntries(
+      harResponse.headers.map((e) => MapEntry(e.name, [e.value])),
+    );
+    final response = FakeHttpResponse(
+      statusCode: harResponse.status,
+      body: body,
+      headers: headers,
+    );
+
+    _completer.complete(response);
 
     return done;
   }
@@ -224,13 +322,17 @@ class FakeHttpClientRequest implements HttpClientRequest {
   }
 
   @override
-  Future addStream(Stream<List<int>> stream) {
-    // TODO: implement addStream
-    throw UnimplementedError();
+  Future<void> addStream(Stream<List<int>> stream) async {
+    _bytesCompleter ??= Completer<List<int>>();
+    final bytes = <int>[];
+
+    await stream.forEach(bytes.addAll);
+
+    _bytesCompleter?.complete(bytes);
   }
 
   @override
-  Future flush() {
+  Future<Object> flush() {
     // TODO: implement flush
     throw UnimplementedError();
   }
@@ -241,7 +343,8 @@ class FakeHttpClientRequest implements HttpClientRequest {
   }
 
   @override
-  void writeAll(Iterable objects, [String separator = '']) {
+  // ignore: avoid-dynamic
+  void writeAll(Iterable<dynamic> objects, [String separator = '']) {
     // TODO: implement writeAll
   }
 

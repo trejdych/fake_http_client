@@ -1,9 +1,11 @@
+import 'dart:collection';
 import 'dart:io';
 
 class FakeHttpHeaders implements HttpHeaders {
-  FakeHttpHeaders([this._headers = const {}]);
+  FakeHttpHeaders([Map<String, List<String>> headers = const {}])
+      : _headers = _CaseInsensitiveMap<List<String>>(headers);
 
-  final Map<String, List<String>> _headers;
+  final _CaseInsensitiveMap<List<String>> _headers;
 
   /// The date specified by the [HttpHeaders.dateHeader] header, if any.
   @override
@@ -152,4 +154,37 @@ class FakeHttpHeaders implements HttpHeaders {
   /// remaining values are no longer considered present.
   @override
   void clear() => _headers.clear();
+}
+
+class _CaseInsensitiveMap<V> extends MapBase<String, V> {
+  _CaseInsensitiveMap(Map<String, V> map)
+      : _innerMap = Map<String, V>.from(
+          map.map((key, value) => MapEntry(_normalizeKey(key), value)),
+        );
+  final Map<String, V> _innerMap;
+
+  @override
+  V? operator [](Object? key) => switch (key) {
+        final key? => _innerMap[_normalizeKey(key)],
+        _ => null,
+      };
+
+  @override
+  void operator []=(String key, V value) {
+    _innerMap[_normalizeKey(key)] = value;
+  }
+
+  @override
+  void clear() => _innerMap.clear();
+
+  @override
+  Iterable<String> get keys => _innerMap.keys;
+
+  @override
+  V? remove(Object? key) => switch (key) {
+        final key? => _innerMap.remove(_normalizeKey(key)),
+        _ => null,
+      };
+
+  static String _normalizeKey(Object key) => key.toString().toLowerCase();
 }
