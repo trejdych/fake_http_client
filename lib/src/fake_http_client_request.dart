@@ -180,13 +180,21 @@ class FakeHttpClientRequest implements HttpClientRequest {
     if (delay case final delay?) {
       await Future<void>.delayed(delay);
     }
-    final content = harResponse.content.text;
-    final body = utf8.encode(content);
+    if (_completer.isCompleted) {
+      return done;
+    }
+    final body = switch (harResponse.content) {
+      HarResponseContent(:final text, encoding: 'base64') =>
+        base64.decode(text),
+      HarResponseContent(:final text, encoding: 'utf-8') => text,
+      HarResponseContent(:final text) => utf8.encode(text),
+    };
+
     final headers = Map.fromEntries(
       harResponse.headers.map((e) => MapEntry(e.name, [e.value])),
     );
     final response = FakeHttpResponse(
-      statusCode: int.parse(harResponse.status),
+      statusCode: harResponse.status,
       body: body,
       headers: headers,
     );

@@ -1,3 +1,5 @@
+// ignore_for_file: avoid-dynamic
+
 part of 'har.dart';
 
 class HarResponse {
@@ -13,7 +15,11 @@ class HarResponse {
         .toList();
 
     return HarResponse(
-      status: json['status'] as String? ?? '',
+      status: switch (json['status']) {
+        final int status => status,
+        final String status => int.tryParse(status) ?? 0,
+        _ => 0,
+      },
       content: HarResponseContent.fromJson(
         json['content'] as Map<String, dynamic>? ?? const {},
       ),
@@ -21,7 +27,7 @@ class HarResponse {
     );
   }
 
-  final String status;
+  final int status;
   final HarResponseContent content;
   final List<HarHeader> headers;
 }

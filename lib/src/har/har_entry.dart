@@ -11,7 +11,11 @@ class HarEntry {
   factory HarEntry.fromJson(Map<String, dynamic> json) {
     return HarEntry(
       startedDateTime: DateTime.parse(json['startedDateTime'] as String),
-      time: json['time'] as int? ?? 0,
+      time: switch (json['time']) {
+        final int time => time,
+        final double time => time.toInt(),
+        _ => 0,
+      },
       request: HarRequest.fromJson(json['request'] as Map<String, dynamic>),
       response: HarResponse.fromJson(json['response'] as Map<String, dynamic>),
     );
