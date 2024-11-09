@@ -1,7 +1,8 @@
 import 'dart:io';
 
 class FakeHttpHeaders implements HttpHeaders {
-  FakeHttpHeaders([this._headers = const {}]);
+  FakeHttpHeaders([Map<String, List<String>> headers = const {}])
+      : _headers = Map<String, List<String>>.from(headers);
 
   final Map<String, List<String>> _headers;
 

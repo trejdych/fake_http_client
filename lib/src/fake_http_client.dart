@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'fake_http_client_request.dart';
-import 'fake_http_headers.dart';
-import 'fake_http_response.dart';
+import '../fake_http_client.dart';
 
 /// A callback to simulate authentication.
 ///
@@ -101,7 +99,11 @@ typedef FindProxyCallback = String Function(Uri);
 ///   * [FakeHttpResponse]
 ///   * [HttpOverrides]
 class FakeHttpClient implements HttpClient {
-  FakeHttpClient();
+  FakeHttpClient({
+    required this.harRoot,
+  });
+
+  final HarRoot harRoot;
 
   @override
   bool autoUncompress = true;
@@ -179,14 +181,17 @@ class FakeHttpClient implements HttpClient {
     throw UnsupportedError('');
   }
 
+  var _requestCount = 0;
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) async {
+    final response = harRoot.log.entries[_requestCount].response;
     final HttpClientRequest request = FakeHttpClientRequest(
       method: method,
       uri: url,
       headers: FakeHttpHeaders(),
+      harResponse: response,
     );
-
+    _requestCount++;
     await request.close();
 
     return request;

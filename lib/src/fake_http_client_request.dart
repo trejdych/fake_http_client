@@ -48,12 +48,20 @@ import '../fake_http_client.dart';
 /// `write()` method being used takes a string parameter.
 class FakeHttpClientRequest implements HttpClientRequest {
   FakeHttpClientRequest({
+    required this.harResponse,
     required this.method,
     required this.uri,
     required this.headers,
+    this.delay,
     this.cookies = const [],
     this.connectionInfo,
   });
+
+  final HarResponse harResponse;
+  final Duration? delay;
+
+  final Completer<HttpClientResponse> _completer =
+      Completer<HttpClientResponse>();
 
   /// The requested persistent connection state.
   ///
@@ -164,13 +172,26 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// If an error occurs before the response is available, this future will
   /// complete with an error.
   @override
-  Future<HttpClientResponse> get done => throw UnimplementedError();
+  Future<HttpClientResponse> get done => _completer.future;
 
   /// Close the request for input. Returns the value of [done].
   @override
   Future<HttpClientResponse> close() async {
-    return FakeHttpResponse(body: '1');
-    // throw UnimplementedError();
+    if (delay case final delay?) {
+      await Future<void>.delayed(delay);
+    }
+    final content = harResponse.content.text;
+    final body = utf8.encode(content);
+    final headers = Map.fromEntries(
+      harResponse.headers.map((e) => MapEntry(e.name, [e.value])),
+    );
+    final response = FakeHttpResponse(
+      statusCode: int.parse(harResponse.status),
+      body: body,
+      headers: headers,
+    );
+
+    _completer.complete(response);
 
     return done;
   }
@@ -224,9 +245,8 @@ class FakeHttpClientRequest implements HttpClientRequest {
   }
 
   @override
-  Future addStream(Stream<List<int>> stream) {
+  Future<void> addStream(Stream<List<int>> stream) async {
     // TODO: implement addStream
-    throw UnimplementedError();
   }
 
   @override
