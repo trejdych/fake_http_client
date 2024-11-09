@@ -258,7 +258,7 @@ class FakeHttpClientRequest implements HttpClientRequest {
   }
 
   @override
-  Future flush() {
+  Future<Object> flush() {
     // TODO: implement flush
     throw UnimplementedError();
   }
@@ -269,7 +269,8 @@ class FakeHttpClientRequest implements HttpClientRequest {
   }
 
   @override
-  void writeAll(Iterable objects, [String separator = '']) {
+  // ignore: avoid-dynamic
+  void writeAll(Iterable<dynamic> objects, [String separator = '']) {
     // TODO: implement writeAll
   }
 

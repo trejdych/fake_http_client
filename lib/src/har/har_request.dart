@@ -1,3 +1,5 @@
+// ignore_for_file: avoid-dynamic
+
 part of 'har.dart';
 
 class HarRequest {

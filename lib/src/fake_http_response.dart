@@ -3,27 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../fake_http_client.dart';
-import 'fake_http_client.dart';
-import 'fake_http_headers.dart';
 
-/// A fake [HttpClientResponse] to return in a [RequestCallback].
-///
-/// A test response can be created with [FakeHttpResponse()]. This allows
-/// you to specify the body, [statusCode], and [headers].
-/// Other properties of a [HttpClientResponse] are faked are not currently
-/// customizable:
-///   * [contentLength] is calculated based on the provided body size.
-///   * [redirects] and [cookies] are always the empty list.
-///   * [reasonPhrase], [certificate], and [connectionInfo] are always `null`.
-///   * [isRedirect] and [persistentConnection] are always false.
-///
-/// The methods [redirect] and [detachSocket] throw an [UnsupportedError] if
-/// called.
-///
-/// See also:
-///
-///   * [FakeHttpClient]
-///   * [HttpClient]
 class FakeHttpResponse extends Stream<List<int>> implements HttpClientResponse {
   /// Creates a test response.
   ///
@@ -31,28 +11,27 @@ class FakeHttpResponse extends Stream<List<int>> implements HttpClientResponse {
   /// or a `List<int>` - including `Uint8List` and other typed data objects.
   /// It defaults to the empty string, and will never be `null`;
   ///
-  /// The [statusCode] defaults to [HttpStatus.Ok].
+  /// The [statusCode] defaults to ['HttpStatus.Ok'].
   ///
   /// [headers] are empty by default.  Multiple header values can be passed
   /// in a comma-separated string.
   factory FakeHttpResponse({
-    dynamic body,
+    Object? body,
     int statusCode = HttpStatus.ok,
     Map<String, List<String>> headers = const {},
     HttpClientResponseCompressionState compressionState =
         HttpClientResponseCompressionState.notCompressed,
   }) {
-    body ??= '';
     assert(
       body is String || body is List<int>,
       'body must be a String or List<int>',
     );
-    List<int> codeUnits;
-    if (body is String) {
-      codeUnits = utf8.encode(body);
-    } else {
-      codeUnits = body as List<int>;
-    }
+    final codeUnits = switch (body) {
+      final String s => utf8.encode(s),
+      final List<int> l => l,
+      _ => <int>[],
+    };
+
     final HttpHeaders testHeaders = FakeHttpHeaders(headers);
 
     return FakeHttpResponse._(
@@ -107,11 +86,12 @@ class FakeHttpResponse extends Stream<List<int>> implements HttpClientResponse {
   @override
   StreamSubscription<List<int>> listen(
     void Function(List<int> event)? onData, {
+    // ignore: prefer-explicit-function-type
     Function? onError,
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return Stream<List<int>>.fromIterable(<List<int>>[_body]).listen(
+    return Stream<List<int>>.value(_body).listen(
       onData,
       onError: onError,
       onDone: onDone,
