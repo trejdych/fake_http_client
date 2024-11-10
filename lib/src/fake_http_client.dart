@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import '../fake_http_client.dart';
-
 class FakeHttpClient implements HttpClient {
   FakeHttpClient({
-    required this.harRoot,
+    required this.onRequest,
   });
 
-  final HarRoot harRoot;
+  final Future<HttpClientRequest> Function(
+    Uri uri,
+    String method,
+  ) onRequest;
 
   @override
   bool autoUncompress = true;
@@ -92,17 +93,10 @@ class FakeHttpClient implements HttpClient {
     throw UnsupportedError('');
   }
 
-  var _requestCount = 0;
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) async {
-    final response = harRoot.log.entries[_requestCount].response;
-    final HttpClientRequest request = FakeHttpClientRequest(
-      method: method,
-      uri: url,
-      headers: FakeHttpHeaders(),
-      harResponse: response,
-    );
-    _requestCount++;
+    final request = await onRequest(url, method);
+
     await request.close();
 
     return request;

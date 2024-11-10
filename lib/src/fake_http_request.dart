@@ -46,16 +46,36 @@ import '../fake_http_client.dart';
 ///
 /// An exception is thrown if you use an unsupported encoding and the
 /// `write()` method being used takes a string parameter.
-class FakeHttpClientRequest implements HttpClientRequest {
-  FakeHttpClientRequest({
+class FakeHttpRequest implements HttpClientRequest {
+  FakeHttpRequest({
     required this.harResponse,
     required this.method,
     required this.uri,
-    required this.headers,
+    this.contentLength = -1,
     this.delay,
     this.cookies = const [],
     this.connectionInfo,
   });
+
+  factory FakeHttpRequest.imagePng({required Uri uri, String method = 'GET'}) =>
+      FakeHttpRequest(
+        method: method,
+        uri: uri,
+        contentLength: 8,
+        harResponse: const HarResponse(
+          status: 200,
+          headers: [
+            HarHeader(name: 'Content-Type', value: 'image/png'),
+          ],
+          content: HarResponseContent(
+            mimeType: 'image/png',
+            size: 8,
+            text:
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wcAAwAB/6Wk8QAAAABJRU5ErkJggg==', // Base64 encoded 1x1 PNG image
+            encoding: 'base64',
+          ),
+        ),
+      );
 
   final HarResponse harResponse;
   final Duration? delay;
@@ -143,7 +163,7 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// If the size of the request is not known in advance set content length to
   /// -1, which is also the default.
   @override
-  int contentLength = -1;
+  int contentLength;
 
   /// Gets or sets if the [HttpClientRequest] should buffer output.
   ///
@@ -160,7 +180,11 @@ class FakeHttpClientRequest implements HttpClientRequest {
   /// request body is written to or closed. After that they become
   /// immutable.
   @override
-  final HttpHeaders headers;
+  HttpHeaders get headers => FakeHttpHeaders(
+        Map.fromEntries(
+          harResponse.headers.map((e) => MapEntry(e.name, [e.value])),
+        ),
+      );
 
   /// Cookies to present to the server (in the 'cookie' header).
   @override

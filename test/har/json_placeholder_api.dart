@@ -2,15 +2,26 @@
 
 import 'package:dio/dio.dart';
 
-import 'post.dart';
+typedef JSON = Map<String, dynamic>;
 
 class JsonPlaceholderApi {
   static const String baseUrl = 'https://jsonplaceholder.typicode.com';
   final dio = Dio();
 
-  Future<PostList> getPosts() async {
-    final response = await dio.get<List<dynamic>>('$baseUrl/posts');
+  Future<Response<List<dynamic>>> getPosts({int? userId}) async {
+    final response = await dio.get<List<dynamic>>(
+      '$baseUrl/posts',
+      queryParameters: {
+        if (userId case final id?) 'userId': id,
+      },
+    );
 
-    return PostList.fromJson(response.data!);
+    return response;
+  }
+
+  Future<Response<JSON>> getPost(int id) async {
+    final response = await dio.get<Map<String, dynamic>>('$baseUrl/posts/$id');
+
+    return response;
   }
 }
