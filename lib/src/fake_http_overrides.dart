@@ -20,17 +20,16 @@ class FakeHttpOverrides extends HttpOverrides {
   final ResponseManager _responseManager;
 
   static Future<FakeHttpOverrides> createFromFile(
-    String path, {
+    File file, {
     FakeHttpRequestMapper? onRequest,
   }) async {
     if (!const bool.fromEnvironment('dart.vm.product')) {
-      final file = File(path);
-
-      return FakeHttpOverrides(
-        harContent:
-            jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+      final client = FakeHttpOverrides(
+        harContent: jsonDecode(file.readAsStringSync()) as Map<String, dynamic>,
         onRequest: onRequest,
       );
+
+      return client;
     }
     throw UnsupportedError(
       'FakeHttpOverrides.createFromFile is not supported in release mode',

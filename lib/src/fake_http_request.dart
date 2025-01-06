@@ -80,8 +80,8 @@ class FakeHttpRequest implements HttpClientRequest {
   final HarResponse harResponse;
   final Duration? delay;
 
-  final Completer<HttpClientResponse> _completer =
-      Completer<HttpClientResponse>();
+  final _bytesCompleter = Completer<List<int>>();
+  final _completer = Completer<HttpClientResponse>();
 
   /// The requested persistent connection state.
   ///
@@ -211,7 +211,7 @@ class FakeHttpRequest implements HttpClientRequest {
       HarResponseContent(:final text, encoding: 'base64') =>
         base64.decode(text),
       HarResponseContent(:final text, encoding: 'utf-8') => text,
-      HarResponseContent(:final text) => utf8.encode(text),
+      HarResponseContent(:final text) => encoding.encode(text),
     };
 
     final headers = Map.fromEntries(
@@ -278,7 +278,14 @@ class FakeHttpRequest implements HttpClientRequest {
 
   @override
   Future<void> addStream(Stream<List<int>> stream) async {
-    // TODO: implement addStream
+    final bytes = <int>[];
+
+    await stream.forEach(bytes.addAll);
+    // await for (final chunk in stream) {
+    //   bytes.addAll(chunk);
+    // }
+    final value = encoding.decode(bytes);
+    _bytesCompleter.complete(bytes);
   }
 
   @override
